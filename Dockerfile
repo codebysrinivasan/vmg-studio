@@ -1,19 +1,20 @@
-# 1. Use Python 3.10
 FROM python:3.10-slim
 
-# 2. Set the working directory
 WORKDIR /code
 
-# 3. Copy and install requirements 
-# (opencv-python-headless handles the graphics libraries now)
-COPY ./requirements.txt /code/requirements.txt
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+# Install system dependencies (IMPORTANT)
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
 
-# 4. Copy your main.py and index.html
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-# 5. OPEN THE DEFAULT RENDER PORT
 EXPOSE 10000
 
-# 6. Start the engine
-CMD ["python", "main.py"]
+# Use uvicorn directly (IMPORTANT)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
