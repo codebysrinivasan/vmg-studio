@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /code
 
-# Install system dependencies (IMPORTANT)
+# Install required system libs
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
@@ -16,5 +16,5 @@ COPY . .
 
 EXPOSE 10000
 
-# Use uvicorn directly (IMPORTANT)
+# 🔥 IMPORTANT FIX
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
