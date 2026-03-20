@@ -1,5 +1,4 @@
 import os
-import uvicorn
 import base64
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
@@ -9,7 +8,7 @@ from typing import List
 
 app = FastAPI(title="RedPepper AI Engine")
 
-# Enable CORS
+# Enable CORS (for frontend access)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,11 +16,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize session (lightweight default model)
+# Initialize AI session (lightweight model)
 session = new_session()
 
-# Max file size (5MB per image)
+# Limit file size (5MB)
 MAX_FILE_SIZE = 5 * 1024 * 1024
+
 
 @app.post("/remove-bg-multiple")
 async def remove_bg_multiple(files: List[UploadFile] = File(...)):
@@ -31,14 +31,14 @@ async def remove_bg_multiple(files: List[UploadFile] = File(...)):
         try:
             input_image = await file.read()
 
-            # 🔴 File size check (VERY IMPORTANT for Render)
+            # File size validation
             if len(input_image) > MAX_FILE_SIZE:
                 raise HTTPException(
                     status_code=400,
                     detail=f"{file.filename} is too large (max 5MB allowed)"
                 )
 
-            # ✅ Background removal (lightweight)
+            # Background removal
             output_image = remove(input_image, session=session)
 
             # Convert to Base64
@@ -67,9 +67,3 @@ async def read_index():
         return FileResponse(index_path)
 
     return {"error": "index.html not found. Put it in root folder."}
-
-
-# ✅ Render-compatible startup
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
