@@ -12,5 +12,8 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 # 4. Copy your main.py and index.html
 COPY . .
 
-# 5. Start the engine on port 4000
+# 5. OPEN THE DEFAULT RENDER PORT
+EXPOSE 10000
+
+# 6. Start the engine
 CMD ["python", "main.py"]
