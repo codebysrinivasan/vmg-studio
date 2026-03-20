@@ -17,7 +17,7 @@ app.add_middleware(
 )
 
 # Initialize AI session (lightweight model)
-session = new_session()
+session = new_session("u2netp")
 
 # Limit file size (5MB)
 MAX_FILE_SIZE = 5 * 1024 * 1024
