@@ -1,15 +1,16 @@
-from fastapi import FastAPI, UploadFile, File
-from fastapi.responses import Response, FileResponse, JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from rembg import remove, new_session
+import os
 import uvicorn
 import io
-import os
-import base64
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from rembg import remove, new_session
+import PIL.Image as Image
 
-app = FastAPI()
-base_path = os.path.dirname(os.path.abspath(__file__))
+app = FastAPI(title="RedPepper AI Engine")
 
+# Enable CORS for testing
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,42 +18,46 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize AI session once for speed
+# Initialize the AI session once to save memory
+# This uses the 'isnet-general-use' model you saw in your logs
 session = new_session("isnet-general-use")
 
-@app.get("/")
-async def serve_home():
-    html_path = os.path.join(base_path, "index.html")
-    if os.path.exists(html_path):
-        return FileResponse(html_path)
-    return {"error": "index.html not found in the current directory."}
+# 1. Background Removal Endpoint
+@app.post("/remove-bg")
+async def remove_background(file: UploadFile = File(...)):
+    try:
+        # Read uploaded image
+        input_image = await file.read()
+        
+        # Process image with rembg
+        # alpha_matting=True helps with the "White-on-White" scenarios you mentioned
+        output_image = remove(
+            input_image, 
+            session=session,
+            alpha_matting=True,
+            alpha_matting_foreground_threshold=240,
+            alpha_matting_background_threshold=10,
+            alpha_matting_erode_size=10
+        )
+        
+        # Return the processed image as a PNG stream
+        return StreamingResponse(io.BytesIO(output_image), media_type="image/png")
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/remove-bg-multiple")
-async def remove_bg_multiple(files: list[UploadFile] = File(...)):
-    processed_images = []
-    for file in files:
-        try:
-            input_data = await file.read()
-            # Professional settings for clean edges
-            output_data = remove(
-                input_data, 
-                session=session,
-                alpha_matting=True,
-                alpha_matting_foreground_threshold=240,
-                alpha_matting_background_threshold=10,
-                alpha_matting_erode_size=10
-            )
-            
-            # Convert to base64 to send in JSON
-            base64_image = base64.b64encode(output_data).decode('utf-8')
-            processed_images.append({
-                "filename": file.filename,
-                "data": f"data:image/png;base64,{base64_image}"
-            })
-        except Exception as e:
-            print(f"Error processing {file.filename}: {e}")
-            
-    return JSONResponse(content={"images": processed_images})
+# 2. Serve Frontend
+# Ensure your index.html is inside a folder named 'static'
+if os.path.exists("static"):
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def read_index():
+    if os.path.exists("static/index.html"):
+        return FileResponse('static/index.html')
+    return {"message": "RedPepper AI Engine is Running. Upload index.html to /static to see the UI."}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8501)
+    # CRITICAL: Render requires binding to the 'PORT' environment variable
+    port = int(os.environ.get("PORT", 10000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
