@@ -58,6 +58,9 @@ async def read_index():
     return {"error": "index.html not found. Ensure it is in the root directory."}
 
 if __name__ == "__main__":
-    # Forces port 4000 if Render's PORT variable isn't set
-    port = int(os.environ.get("PORT", 4000))
+    # This automatically picks up Render's default (10000)
+    # or falls back to 10000 if nothing is set.
+    port = int(os.environ.get("PORT", 10000))
+    
+    # host MUST be 0.0.0.0 for Render to see the app
     uvicorn.run(app, host="0.0.0.0", port=port)
